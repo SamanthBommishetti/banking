@@ -2,6 +2,12 @@
 
 ## Step-1
 Created a Storage account and created a raw container.Inside the raw container created  atm,upi,customer directories and uploaded the data
+<img width="1600" height="826" alt="image" src="https://github.com/user-attachments/assets/f6418d8b-6580-4c14-85ba-8d15a5faa036" />
+
+<img width="750" height="449" alt="image" src="https://github.com/user-attachments/assets/0a411179-37fc-4622-83a1-8975f7717617" />
+
+<img width="1190" height="827" alt="image" src="https://github.com/user-attachments/assets/92b1cefc-9657-4fa2-8d13-660316b9d326" />
+
 
 ## Step-2 
 Created a  function app and  inside function app store the environment variables of storage access key and also created Event Grid and Queue  when ever we uploaded the files it will reflect 
