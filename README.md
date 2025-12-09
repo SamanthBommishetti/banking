@@ -40,6 +40,43 @@ Stored the data from the cosmos db to the silver container  by using pyspark by 
 <img width="1532" height="584" alt="image" src="https://github.com/user-attachments/assets/b2b9f23e-7f16-457a-a4b8-ccdee288a1d8" />
 
 
+# Day 3
+
+Loaded the data from adls gen2 from containers and stored them as fact and dimensions tables in Azure SQL  and performed the data synchronization
+
+<img width="1144" height="803" alt="image" src="https://github.com/user-attachments/assets/d3f16c39-7924-4a38-8109-060115a4248b" />
+
+<img width="1600" height="678" alt="image" src="https://github.com/user-attachments/assets/07675baf-5296-42e8-9426-84ae328bf42a" />
+
+<img width="1600" height="692" alt="image" src="https://github.com/user-attachments/assets/223dddf1-0f86-430c-b345-57132155e2fe" />
+
+<img width="1557" height="701" alt="image" src="https://github.com/user-attachments/assets/ec0ee54c-c3ea-42f4-8c93-9edea174cfde" />
+
+<img width="1600" height="713" alt="image" src="https://github.com/user-attachments/assets/0d16ba33-c107-4876-ae70-c9ce6a6e2e29" />
+
+<img width="1697" height="793" alt="image" src="https://github.com/user-attachments/assets/3c52a037-7754-445b-9dce-291cb3614ae8" />
+
+<img width="1783" height="803" alt="image" src="https://github.com/user-attachments/assets/cbc2431b-ba98-41d6-bd93-6175f909f732" />
+
+<img width="1889" height="804" alt="image" src="https://github.com/user-attachments/assets/0d47d8a0-4fe4-4ee0-bbc1-0a17c208aa4c" />
+
+<img width="1585" height="587" alt="image" src="https://github.com/user-attachments/assets/c68be0aa-f03b-472c-b996-41fba5e03ba6" />
+
+<img width="1837" height="803" alt="image" src="https://github.com/user-attachments/assets/ed20c137-3b4d-46e8-90f3-fae5dfb27199" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
