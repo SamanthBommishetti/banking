@@ -64,6 +64,19 @@ Loaded the data from adls gen2 from containers and stored them as fact and dimen
 
 <img width="1837" height="803" alt="image" src="https://github.com/user-attachments/assets/ed20c137-3b4d-46e8-90f3-fae5dfb27199" />
 
+## merge staging tables
+
+<img width="1823" height="820" alt="image" src="https://github.com/user-attachments/assets/5d2303d3-8f66-4a26-92ef-de61119301b2" />
+
+<img width="1824" height="810" alt="image" src="https://github.com/user-attachments/assets/5d1c17c9-7840-4915-a30b-dcd8c30cc235" />
+
+<img width="1883" height="836" alt="image" src="https://github.com/user-attachments/assets/574a2401-7b07-44fb-8a06-be3079d50b46" />
+
+
+
+
+
+
 
 
 
