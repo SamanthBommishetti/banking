@@ -21,7 +21,7 @@ end of day -1
 # Day 2
 
 ## Step-1
-Loaded data from the azure  raw container and stored the data in the cosmos db using service bus trigger function
+Loaded data from the azure  raw container and stored the data in the cosmos db using service bus trigger function  satisfying the  deduplications conditions,fraud alerts etc
 
 <img width="1600" height="759" alt="image" src="https://github.com/user-attachments/assets/0ea63ea9-105e-4cc8-bf0a-93beb94ef725" />
 
