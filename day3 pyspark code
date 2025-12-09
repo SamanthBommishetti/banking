@@ -1,0 +1,74 @@
+from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
+
+spark = SparkSession.builder.appName("Banking_Day3_FINAL").getOrCreate()
+
+# ADLS
+sas_token = "sv=2024-11-04&ss=bfqt&srt=sco&sp=rwdlacupyx&se=2025-12-09T14:11:41Z&st=2025-12-09T05:56:41Z&spr=https&sig=ULKbIFygtqazKhG1N%2BV4bCMHvd2th5cVdAhvyRt9Wds%3D"
+spark.conf.set("fs.azure.account.auth.type.charithastorage123.dfs.core.windows.net", "SAS")
+spark.conf.set("fs.azure.sas.token.provider.type.charithastorage123.dfs.core.windows.net", "org.apache.hadoop.fs.azurebfs.sas.FixedSASTokenProvider")
+spark.conf.set("fs.azure.sas.fixed.token.charithastorage123.dfs.core.windows.net", sas_token)
+
+silver_path = "abfss://silver@charithastorage123.dfs.core.windows.net"
+atm_silver  = spark.read.parquet(f"{silver_path}/atm_silver")
+upi_silver  = spark.read.parquet(f"{silver_path}/upi_silver")
+cust_silver = spark.read.parquet(f"{silver_path}/cust_silver")
+
+jdbc_url = "jdbc:sqlserver://sam4server.database.windows.net:1433;database=samdatabase;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30;"
+props = {"user": "samanth", "password": "Bunty5550#", "driver": "com.microsoft.sqlserver.jdbc.SQLServerDriver"}
+
+# 1-4 already done
+print("1-4 already completed")
+
+# 5. DimBranch – 100% working (no BranchSK inserted)
+print("5/7 Loading DimBranch...")
+branch_df = (atm_silver.filter("ATMID is not null")
+             .selectExpr("ATMID as BranchID", "Location as BranchName", "Location")
+             .union(upi_silver.filter("DeviceID is not null")
+                    .selectExpr("DeviceID as BranchID", "'Digital/UPI Branch' as BranchName", "GeoLocation as Location"))
+             .select("BranchID","BranchName","Location").distinct())
+
+existing_branch = spark.read.jdbc(url=jdbc_url, table="DimBranch", properties=props).select("BranchID")
+new_branch = branch_df.join(existing_branch, "BranchID", "left_anti")
+
+if new_branch.count() > 0:
+    new_branch.write.mode("append").jdbc(url=jdbc_url, table="DimBranch", properties=props)
+    print(f"DimBranch → {new_branch.count()} new branches added!")
+else:
+    print("DimBranch → Already up to date")
+print("DimBranch → SUCCESS")
+
+# 6. FactCustomerActivity – AMBIGUOUS FIXED
+print("6/7 Refreshing FactCustomerActivity...")
+fact = spark.read.jdbc(url=jdbc_url, table="FactTransactions", properties=props)
+current_sk = spark.read.jdbc(url=jdbc_url, table="DimCustomer", properties=props) \
+    .filter("IsCurrent = 1").select("CustomerID", "CustomerSK")
+
+(fact.alias("f")
+ .join(current_sk.alias("c"), F.col("f.CustomerSK") == F.col("c.CustomerSK"), "left")
+ .groupBy(F.col("f.CustomerSK"))
+ .agg(
+     F.count("*").alias("TotalTransactions"),
+     F.sum("Amount").cast("decimal(18,2)").alias("TotalAmount"),
+     F.max("TransactionDate").alias("LastActivityDate"),
+     F.sum(F.col("IsSuspicious").cast("int")).alias("SuspiciousCount")
+ )
+ .select(F.col("f.CustomerSK").alias("CustomerSK"),
+         "TotalTransactions","TotalAmount","LastActivityDate","SuspiciousCount")
+ .write.mode("overwrite").jdbc(url=jdbc_url, table="FactCustomerActivity", properties=props))
+print("FactCustomerActivity → SUCCESS")
+
+# 7. FactFraudDetection – FIXED
+print("7/7 Refreshing FactFraudDetection...")
+(fact.alias("f")
+ .filter("Amount > 90000")
+ .join(current_sk.alias("c"), F.col("f.CustomerSK") == F.col("c.CustomerSK"), "left")
+ .select("TransactionID","AccountNumber",
+         F.col("f.CustomerSK").alias("CustomerSK"),
+         F.current_timestamp().alias("AlertTimestamp"),
+         F.lit("High Value Transaction").alias("AlertReason"),
+         "Amount")
+ .write.mode("overwrite").jdbc(url=jdbc_url, table="FactFraudDetection", properties=props))
+print("FactFraudDetection → SUCCESS")
+
+=
