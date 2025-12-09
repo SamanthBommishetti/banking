@@ -1,8 +1,3 @@
-# =======================================================
-# DAY 3 – FINAL, 100% COMPLETE & BULLETPROOF
-# NO AMBIGUOUS COLUMNS | MERGE/UPSERT | STAGING | READY FOR SCHEDULING
-# =======================================================
-
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
@@ -114,14 +109,4 @@ print("7/7 FactFraudDetection")
  .write.mode("overwrite").jdbc(url=jdbc_url, table="FactFraudDetection", properties=props))
 print("FactFraudDetection → SUCCESS")
 
-# =======================================================
-print("\n" + "="*100)
-print("DAY 3 100% COMPLETED – ZERO ERRORS – ENTERPRISE GRADE!")
-print("MERGE/UPSERT + Staging + No ambiguous columns + DimBranch")
-print("Your banking data warehouse is now PERFECT")
-print("="*100)
-print("TYPE EXACTLY THIS:")
-print("")
-print("DONE")
-print("")
-print("I will send you the Power BI dashboard + Azure Functions instantly!")
+
