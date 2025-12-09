@@ -74,6 +74,17 @@ Loaded the data from adls gen2 from containers and stored them as fact and dimen
 
 
 
+## step-2 
+
+execute the time trigger functions to synchronise the data 
+
+<img width="1419" height="986" alt="image" src="https://github.com/user-attachments/assets/dd38f604-f1cb-4be6-827d-37edac0f1ad5" />
+
+
+
+
+
+
 
 
 
