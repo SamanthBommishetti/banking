@@ -81,6 +81,30 @@ execute the time trigger functions to synchronise the data
 <img width="1419" height="986" alt="image" src="https://github.com/user-attachments/assets/dd38f604-f1cb-4be6-827d-37edac0f1ad5" />
 
 
+# DAY -4
+## Step-1
+Performed Event grid Trigger to detect the fraud detection 
+<img width="1428" height="966" alt="image" src="https://github.com/user-attachments/assets/27ad63ab-4c07-40f9-b1ab-fd336ec08a30" />
+
+<img width="1600" height="761" alt="image" src="https://github.com/user-attachments/assets/b71b7046-69f3-426e-949e-bc259f1b6f60" />
+
+## Step-2 
+
+Performed the ci/cd inetgrations in  github workflows
+
+
+# Day 5
+
+Prepared the power bi dashboards  by connecting through the Azure SQL 
+
+<img width="1336" height="764" alt="image" src="https://github.com/user-attachments/assets/bf1b5e40-43cb-428b-8e45-2bbeeedb26af" />
+
+<img width="1336" height="764" alt="image" src="https://github.com/user-attachments/assets/b3acaede-7f90-479c-bae3-614da6e56afe" /> 
+
+
+
+
+
 
 
 
