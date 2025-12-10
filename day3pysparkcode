@@ -1,0 +1,288 @@
+import findspark
+findspark.init("C:/spark/spark-3.4.1-bin-hadoop3")
+
+from pyspark.sql import SparkSession
+
+spark = (
+    SparkSession.builder
+        .appName("CosmosETL")
+        
+        # Cosmos DB Spark Connector
+        .config(
+            "spark.jars.packages",
+            "com.azure.cosmos.spark:azure-cosmos-spark_3-4_2-12:4.41.0"
+        )
+        
+        # ADLS Gen2 (ABFS) authentication
+        .config("fs.azure.account.key.samstorage.dfs.core.windows.net",
+                "k3f/N47wk7KRksHyAa6fcFAAJVPLFLNBRejSUYM+85v71Oz7uWx5fm6s9dEVfGmWIMhKyzLoSIPX+ASt0lHp2Q==")
+        
+        .config("fs.azure.account.auth.type.samstorage.dfs.core.windows.net", "SharedKey")
+        .config("fs.azure", "org.apache.hadoop.fs.azure.NativeAzureFileSystem")
+        .config("fs.azure.skip.metrics", "true")
+
+        # Performance tuning
+        .config("spark.sql.shuffle.partitions", "4")
+        
+        .getOrCreate()
+)
+
+spark
+
+
+cosmosConfig = {
+  "spark.cosmos.accountEndpoint": "https://samdb.documents.azure.com:443/",
+  "spark.cosmos.accountKey": "VoP3rX3G2qkeiRYr7n0oRcATCwRRs9KYSaakIBgeCkaTjfgEhAHhBMOHNYZX48P0CgDAi0ffAS6CACDbLNczfA==",
+  "spark.cosmos.database": "OperationalDB"
+}
+
+
+atm_raw = (
+    spark.read.format("cosmos.oltp")
+    .options(**cosmosConfig, **{"spark.cosmos.container": "ATMTransactions"})
+    .load()
+)
+
+upi_raw = (
+    spark.read.format("cosmos.oltp")
+    .options(**cosmosConfig, **{"spark.cosmos.container": "UPIEvents"})
+    .load()
+)
+
+cust_raw = (
+    spark.read.format("cosmos.oltp")
+    .options(**cosmosConfig, **{"spark.cosmos.container": "AccountProfile"})
+    .load()
+)
+
+print("ATM:", atm_raw.count())
+print("UPI:", upi_raw.count())
+print("Customers:", cust_raw.count())
+
+atm_raw.printSchema()
+atm_raw.columns
+
+upi_raw.printSchema()
+upi_raw.columns
+
+cust_raw.printSchema()
+cust_raw.columns
+
+from pyspark.sql.functions import col, to_timestamp, lit
+
+upi_silver = (
+    upi_raw
+    .withColumn("TxnTimestamp", to_timestamp("TxnTimestamp"))
+    .withColumn("TransactionAmount", col("Amount").cast("double"))
+    .withColumn("Channel", lit("UPI"))
+    .select(
+        col("TxnID").alias("TransactionID"),
+        "AccountNumber",
+        "CustomerID",
+        "TxnTimestamp",
+        "TransactionAmount",
+        "transaction_type",
+        "DeviceID",
+        "Status",
+        "PayeeUPI",
+        "PayerUPI",
+        "GeoLocation",
+        "EventID",
+    )
+)
+
+upi_silver.show(5, truncate=False)
+upi_silver.write.mode("overwrite").parquet(
+    "abfs://silver@samstorage.dfs.core.windows.net/upi_silver/"
+)
+
+
+
+atm_silver = (
+    atm_raw
+    .withColumn("TransactionTime", to_timestamp("TransactionTime"))
+    .withColumn("TransactionAmount", col("TransactionAmount").cast("double"))
+    .withColumn("Channel", lit("ATM"))
+    .select(
+        col("TransactionID"),
+        col("AccountNumber"),
+        col("CustomerID"),
+        col("TransactionTime").alias("TxnTimestamp"),
+        "TransactionAmount",
+        "TransactionType",
+        "transaction_type",
+        "Location",
+        "ATMID",
+        "Status"
+    )
+)
+
+atm_silver.show(5, truncate=False)
+atm_silver.write.mode("overwrite").parquet(
+    "abfs://silver@samstorage.dfs.core.windows.net/atm_silver/"
+)
+
+
+from pyspark.sql.functions import (
+    col, when, lit, to_timestamp, date_format,
+    year, month, dayofmonth, quarter, monotonically_increasing_id
+)
+cust_silver = (
+    cust_raw
+    .withColumn("Name", when(col("Name").isNull(), col("CustomerID")).otherwise(col("Name")))
+    .select(
+        col("CustomerID"),
+        col("Name"),
+        col("Email"),
+        col("Phone"),
+        to_timestamp("CreatedAt").alias("CreatedAt")
+    )
+)
+
+cust_silver.show(5, truncate=False)
+cust_silver.write.mode("overwrite").parquet(
+    "abfs://silver@samstorage.dfs.core.windows.net/cust_silver/"
+)
+
+
+from pyspark.sql.functions import monotonically_increasing_id
+
+dim_customer = (
+    cust_silver
+    .withColumn("CustomerSK", monotonically_increasing_id())
+)
+
+dim_customer.show(5, truncate=False)
+dim_customer.write.mode("overwrite").parquet(
+    "abfs://gold@samstorage.dfs.core.windows.net/DimCustomer/"
+)
+
+dim_account = (
+    upi_silver.select("AccountNumber").union(atm_silver.select("AccountNumber"))
+    .distinct()
+    .withColumn("AccountSK", monotonically_increasing_id())
+)
+
+dim_account.show(5, truncate=False)
+dim_account.write.mode("overwrite").parquet(
+    "abfs://gold@samstorage.dfs.core.windows.net/DimAccount/"
+)
+
+
+from pyspark.sql.functions import year, month, dayofmonth, quarter, date_format
+
+dates = (
+    upi_silver.select(col("TxnTimestamp"))
+    .union(atm_silver.select(col("TxnTimestamp")))
+    .distinct()
+    .withColumn("DateSK", date_format("TxnTimestamp", "yyyyMMdd"))
+    .withColumn("Year", year("TxnTimestamp"))
+    .withColumn("Month", month("TxnTimestamp"))
+    .withColumn("Day", dayofmonth("TxnTimestamp"))
+    .withColumn("Quarter", quarter("TxnTimestamp"))
+)
+
+dim_date = dates.select("DateSK", "Year", "Month", "Day", "Quarter")
+
+dim_date.show(10, truncate=False)
+dim_date.write.mode("overwrite").parquet(
+    "abfs://gold@samstorage.dfs.core.windows.net/DimDate/"
+)
+
+
+from pyspark.sql.functions import col, date_format, lit
+
+upi_gold = (
+    upi_silver
+    .withColumn("DateSK", date_format(col("TxnTimestamp"), "yyyyMMdd"))
+    .withColumn("Channel", lit("UPI"))   # add Channel safely here
+    .select(
+        col("TransactionID"),
+        col("CustomerID"),
+        col("AccountNumber"),
+        col("TxnTimestamp"),
+        col("TransactionAmount"),
+        col("transaction_type").alias("TransactionType"),
+        col("Channel"),
+        col("EventID"),
+        col("Status"),
+        col("DeviceID"),
+        col("PayeeUPI"),
+        col("PayerUPI"),
+        col("GeoLocation"),
+        col("DateSK")
+    )
+)
+
+
+atm_gold = (
+    atm_silver
+    .withColumn("DateSK", date_format(col("TxnTimestamp"), "yyyyMMdd"))
+    .withColumn("Channel", lit("ATM"))
+    .select(
+        col("TransactionID"),
+        col("CustomerID"),
+        col("AccountNumber"),
+        col("TxnTimestamp"),
+        col("TransactionAmount"),
+        col("TransactionType"),
+        col("Channel"),
+        col("ATMID"),
+        col("Location"),
+        col("Status"),
+        col("DateSK")
+    )
+)
+
+
+
+from pyspark.sql.functions import lit
+
+atm_common = atm_gold.select(
+    "TransactionID","CustomerID","AccountNumber","TxnTimestamp",
+    "TransactionAmount","TransactionType","Channel",
+    lit(None).alias("EventID"),
+    lit(None).alias("DeviceID"),
+    lit(None).alias("PayeeUPI"),
+    lit(None).alias("PayerUPI"),
+    lit(None).alias("GeoLocation"),
+    "Status","DateSK"
+)
+
+upi_common = upi_gold.select(
+    "TransactionID","CustomerID","AccountNumber","TxnTimestamp",
+    "TransactionAmount","TransactionType","Channel",
+    "EventID",
+    "DeviceID",
+    "PayeeUPI",
+    "PayerUPI",
+    "GeoLocation",
+    "Status","DateSK"
+)
+
+
+fact_transactions = atm_common.unionByName(upi_common)
+fact_transactions.show()
+fact_transactions.write.mode("overwrite").parquet(
+    "abfs://gold@samstorage.dfs.core.windows.net/FactTransactions/"
+)
+
+
+
+from pyspark.sql.functions import lit, to_timestamp, monotonically_increasing_id
+
+dim_customer = (
+    cust_silver
+        .select(
+            "CustomerID",
+            "Name",
+            "Email",
+            "Phone",
+            to_timestamp("CreatedAt").alias("StartDate")
+        )
+        .withColumn("EndDate", lit(None).cast("timestamp"))
+        .withColumn("IsCurrent", lit(True))
+        .withColumn("CustomerSK", monotonically_increasing_id())
+)
+
+
